@@ -1,7 +1,22 @@
 import api.BazaarItem;
+import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
+import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
+import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
+import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
+import com.sedmelluq.discord.lavaplayer.player.event.AudioEvent;
+import com.sedmelluq.discord.lavaplayer.player.event.AudioEventListener;
+import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
+import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
+import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
+import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Widget;
+import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
+import net.dv8tion.jda.api.events.guild.voice.GuildVoiceUpdateEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.managers.AudioManager;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
@@ -13,9 +28,14 @@ import java.util.Set;
 
 
 public class BotCommands extends ListenerAdapter {
+
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent e) {
         switch(e.getName()) {
+            case "sendmessage":
+                e.deferReply().queue();
+                e.getHook().sendMessage("Ok!").queue();
+                break;
             case "notifyme":
                 String notifyItem = Objects.requireNonNull(e.getOption("item")).getAsString().toUpperCase();
                 if(MainBazaar.bazaarResponse.products.keySet().toString().contains(notifyItem)) {
@@ -32,11 +52,36 @@ public class BotCommands extends ListenerAdapter {
                 e.deferReply().queue();
                 int ordersReqHere = Objects.requireNonNull(e.getOption("orders7d")).getAsInt();
                 double minBuyPriceHere = Objects.requireNonNull(e.getOption("minbuyprice")).getAsDouble();
-                ArrayList<Double> doubleArrayList = new ArrayList<>();
-                doubleArrayList.add((double) ordersReqHere);
-                doubleArrayList.add(minBuyPriceHere);
-                MainBazaar.notifierChannel.put(e.getChannel().getId(), doubleArrayList);
+                MainBazaar.notifierChannel.put(e.getChannel().getId(), new ArrayList<>());
+                MainBazaar.notifierChannel.get(e.getChannel().getId()).add(String.valueOf(ordersReqHere));
+                MainBazaar.notifierChannel.get(e.getChannel().getId()).add(String.valueOf(minBuyPriceHere));
                 e.getHook().sendMessage("Notifications are now sending to this channel!").queue();
+                try {
+                    MainBazaar.jda.awaitReady();
+                } catch (InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }
+                e.getHook().sendMessage("This message will be updated constantly.").queue(message -> { try {
+                    MainBazaar.jda.awaitReady();
+                } catch (InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }MainBazaar.notifierChannel.get(e.getChannel().getId()).add(message.getId());});
+                break;
+            case "notifyhereah":
+                e.deferReply().queue();
+                double maxBuyCost = Objects.requireNonNull(e.getOption("maxbuycost")).getAsDouble();
+                double maxProfit = Objects.requireNonNull(e.getOption("maxprofit")).getAsDouble();
+                MainBazaar.notifierChannelAH.put(e.getChannel().getId(), new ArrayList<>());
+                MainBazaar.notifierChannelAH.get(e.getChannel().getId()).add(String.valueOf(maxBuyCost));
+                MainBazaar.notifierChannelAH.get(e.getChannel().getId()).add(String.valueOf(maxProfit));
+                e.getHook().sendMessage("Notifications are now sending to this channel!").queue();
+                e.getHook().sendMessage("This message will be updated constantly.").queue();
+                e.getHook().sendMessage("This message will be updated constantly.").queue(message -> {MainBazaar.notifierChannelAH.get(e.getChannel().getId()).add(message.getId());});
+                break;
+            case "experimentnotifyhere":
+                e.deferReply().queue();
+                e.getHook().sendMessage("Notifications are now sending to this channel!").queue();
+                e.getHook().sendMessage("This message will be updated constantly.").queue(message -> { MainBazaar.notifierExperiment.put(e.getChannel().getId(), message.getId());});
                 break;
             case "stop":
                 e.deferReply().queue();
@@ -47,6 +92,15 @@ public class BotCommands extends ListenerAdapter {
                     e.getHook().sendMessage("You were never being notified.").queue();
                 }
                 break;
+            case "stopexperiment":
+                e.deferReply().queue();
+                if(MainBazaar.notifierExperiment.containsKey(e.getChannel().getId())) {
+                    MainBazaar.notifierExperiment.remove(e.getChannel().getId());
+                    e.getHook().sendMessage("This channel has removed.").queue();
+                } else {
+                    e.getHook().sendMessage("This channel was never getting updated.").queue();
+                }
+                break;
             case "stopupdates":
                 e.deferReply().queue();
                 if(MainBazaar.notifierChannel.containsKey(e.getChannel().getId())) {
@@ -54,6 +108,26 @@ public class BotCommands extends ListenerAdapter {
                     e.getHook().sendMessage("This channel has removed.").queue();
                 } else {
                     e.getHook().sendMessage("This channel was never getting updated.").queue();
+                }
+                break;
+            case "stopupdatesah":
+                e.deferReply().queue();
+                if(MainBazaar.notifierChannelAH.containsKey(e.getChannel().getId())) {
+                    MainBazaar.notifierChannelAH.remove(e.getChannel().getId());
+                    e.getHook().sendMessage("This channel has removed.").queue();
+                } else {
+                    e.getHook().sendMessage("This channel was never getting updated.").queue();
+                }
+                break;
+            case "play":
+                e.deferReply().queue();
+                String channelIDvc = Objects.requireNonNull(e.getOption("vcchannelid")).getAsString();
+                if(Objects.requireNonNull(e.getGuild()).getVoiceChannelById(channelIDvc) == (null)) {
+                    e.getHook().sendMessage("Invalid Channel ID").queue();
+                    return;
+                } else {
+                    MainBazaar.VCchannelID = channelIDvc;
+                    e.getHook().sendMessage("pog").queue();
                 }
                 break;
             case "tellme":
@@ -75,7 +149,7 @@ public class BotCommands extends ListenerAdapter {
                     embed.addField("Instant Sell Orders (7d)", format.format(item.quick_status.sellMovingWeek), false);
                     embed.addField("Sell Price", "$" + format.format(Double.valueOf(decimalFormat.format(item.quick_status.sellPrice))), false);
 
-                    embed.setColor(Color.RED);
+                    embed.setColor(Color.GREEN);
 
                     embed.setFooter("Bot created by Optivat");
                     e.getHook().sendMessageEmbeds(embed.build()).queue();
@@ -135,7 +209,7 @@ public class BotCommands extends ListenerAdapter {
                     itemsSacrifice.remove(highMarginItem.product_id);
                     diffPercent = 0;
                 }
-                embedMargin.setColor(Color.RED);
+                embedMargin.setColor(Color.GREEN);
 
                 embedMargin.setFooter("Bot created by Optivat");
                 e.getHook().sendMessageEmbeds(embedMargin.build()).queue();

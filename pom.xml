@@ -16,12 +16,49 @@
 
     <repositories>
         <repository>
+            <id>dv8tion</id>
+            <name>m2-dv8tion</name>
+            <url>https://m2.dv8tion.net/releases</url>
+        </repository>
+        <repository>
             <id>Hypixel</id>
             <url>https://repo.hypixel.net/repository/Hypixel/</url>
+        </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+        <repository>
+            <id>OptixelAPI-mvn-repo</id>
+            <url>https://github.com/Optivat/OptixelAPI/raw/mvn-repo/</url>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
         </repository>
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>com.sedmelluq</groupId>
+            <artifactId>lavaplayer</artifactId>
+            <version>1.3.77</version>
+        </dependency>
+        <dependency>
+            <groupId>com.optivat.api</groupId>
+            <artifactId>OptixelAPI</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.Querz</groupId>
+            <artifactId>NBT</artifactId>
+            <version>6.1</version>
+        </dependency>
+        <dependency>
+            <groupId>net.hypixel</groupId>
+            <artifactId>hypixel-api-transport-apache</artifactId>
+            <version>4.3</version>
+        </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
